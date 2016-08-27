@@ -231,3 +231,6 @@
 	path = third_party/boringssl
 	url = https://boringssl.googlesource.com/boringssl
 	branch = master-with-bazel
+[submodule "third_party/flatbuffers/upstream"]
+	path = third_party/flatbuffers/upstream
+	url = http://github.com/google/flatbuffers.git
