@@ -89,25 +89,33 @@ _genproto_attrs = {
   ),
   "gen_cc": attr.bool(),
   "gen_java": attr.bool(),
+  "outs": attr.output_list(),
 }
 
-def _genproto_outputs(attrs):
-  outputs = {}
-  if attrs.gen_cc:
-    outputs += {
-      "cc_hdr": "%{src}.pb.h",
-      "cc_src": "%{src}.pb.cc"
-    }
-    if attrs.has_service:
-      outputs += {
-        "cc_grpc_hdr": "%{src}.grpc.pb.h",
-        "cc_grpc_src": "%{src}.grpc.pb.cc"
-      }
+def cc_hdr(name):
+  return "%s.pb.h" % name
+def cc_src(name):
+  return "%s.pb.cc" % name
+def cc_grpc_hdr(name):
+  return "%s.grpc.pb.h" % name
+def cc_grpc_src(name):
+  return "%s.grpc.pb.cc" % name
+def java_src(name):
+  return "%s.srcjar" % name
 
-  if attrs.gen_java:
-    outputs += {
-      "java_src": "%{src}.srcjar",
-    }
+# src seems to be a string not a list of strings?
+def _genproto_outputs(src, generate_cc, has_service, generate_java):
+  outputs = []
+  if generate_cc:
+    outputs += [ cc_hdr(src) ] 
+    outputs += [ cc_src(src) ]
+    if has_service:
+      outputs += [ cc_grpc_hdr(src) ]
+      outputs += [ cc_grpc_src(src) ]
+
+  if generate_java:
+    outputs +=  [ java_src(src) ]
+
   return outputs
 
 
@@ -115,9 +123,10 @@ def _genproto_outputs(attrs):
 # files.
 genproto = rule(
   _genproto_impl,
+  # feeding this to the outputs function is not allowed by bazel 0.3.1
   attrs=_genproto_attrs,
   output_to_genfiles=True,
-  outputs=_genproto_outputs,
+  #outputs=_genproto_outputs,
 )
 
 def proto_library(name, src, deps=[],
@@ -139,6 +148,9 @@ def proto_library(name, src, deps=[],
     grpc_java_plugin = "//third_party/java/grpc-java:grpc_java_plugin"
   else:
     grpc_java_plugin = None
+
+  outs = _genproto_outputs(src, generate_cc, has_service, generate_java)
+
   proto_pkg = genproto(
     name=name + "_genproto",
     visibility = visibility,
@@ -148,7 +160,9 @@ def proto_library(name, src, deps=[],
     gen_cc=generate_cc,
     gen_java=generate_java,
     grpc_java_plugin = grpc_java_plugin,
-    grpc_cpp_plugin = grpc_cpp_plugin)
+    grpc_cpp_plugin = grpc_cpp_plugin,
+    outs=outs,
+  )
 
   if generate_cc:
     cc_deps = ["//external:protobuf_clib"]
